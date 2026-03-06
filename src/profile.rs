@@ -137,6 +137,26 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
+pub fn list_skills() -> Result<Vec<String>> {
+    let skills = skills_dir();
+    let resolved = skills
+        .canonicalize()
+        .with_context(|| format!("cannot resolve skills dir — is a profile active?"))?;
+    let mut names: Vec<String> = fs::read_dir(&resolved)
+        .with_context(|| format!("failed to read skills dir: {}", resolved.display()))?
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            if entry.file_type().ok()?.is_dir() {
+                entry.file_name().into_string().ok()
+            } else {
+                None
+            }
+        })
+        .collect();
+    names.sort();
+    Ok(names)
+}
+
 pub fn delete_profile(name: &str) -> Result<()> {
     let profile_path = profiles_dir().join(name);
     if !profile_path.exists() {

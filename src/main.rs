@@ -13,10 +13,6 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    /// Print current profile name
-    #[arg(short = 'c', long = "current")]
-    current: bool,
-
     /// Delete a profile
     #[arg(short = 'd', long = "delete", value_name = "NAME")]
     delete: Option<String>,
@@ -34,6 +30,8 @@ enum Commands {
         /// Source path (defaults to ~/.agents/skills)
         path: Option<PathBuf>,
     },
+    /// List skills in the current profile
+    Skills,
 }
 
 fn main() -> Result<()> {
@@ -45,16 +43,13 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
-    if cli.current {
-        return cmd_current();
-    }
-
     if let Some(name) = cli.delete {
         return cmd_delete(&name);
     }
 
     match cli.command {
         Some(Commands::Create { name, path }) => cmd_create(&name, path.as_deref()),
+        Some(Commands::Skills) => cmd_skills(),
         None => match cli.profile {
             Some(name) => cmd_switch(&name),
             None => cmd_list(),
@@ -101,19 +96,28 @@ fn cmd_switch_previous() -> Result<()> {
     }
 }
 
-fn cmd_current() -> Result<()> {
-    match profile::current_profile() {
-        Some(name) => println!("{}", name),
+fn cmd_create(name: &str, path: Option<&std::path::Path>) -> Result<()> {
+    profile::create_from_path(name, path)
+}
+
+fn cmd_skills() -> Result<()> {
+    let current = profile::current_profile();
+    match current {
         None => {
             eprintln!("{}", "No active profile.".red());
             std::process::exit(1);
         }
+        Some(ref name) => println!("{}", name.green().bold()),
+    }
+    let skills = profile::list_skills()?;
+    if skills.is_empty() {
+        println!("{}", "  (no skills)".dimmed());
+    } else {
+        for s in &skills {
+            println!("  {}", s);
+        }
     }
     Ok(())
-}
-
-fn cmd_create(name: &str, path: Option<&std::path::Path>) -> Result<()> {
-    profile::create_from_path(name, path)
 }
 
 fn cmd_delete(name: &str) -> Result<()> {
