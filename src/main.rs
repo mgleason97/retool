@@ -30,6 +30,8 @@ enum Commands {
         /// Source path (defaults to ~/.agents/skills)
         path: Option<PathBuf>,
     },
+    /// List skills in the current profile
+    Skills,
 }
 
 fn main() -> Result<()> {
@@ -47,6 +49,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Some(Commands::Create { name, path }) => cmd_create(&name, path.as_deref()),
+        Some(Commands::Skills) => cmd_skills(),
         None => match cli.profile {
             Some(name) => cmd_switch(&name),
             None => cmd_list(),
@@ -95,6 +98,26 @@ fn cmd_switch_previous() -> Result<()> {
 
 fn cmd_create(name: &str, path: Option<&std::path::Path>) -> Result<()> {
     profile::create_from_path(name, path)
+}
+
+fn cmd_skills() -> Result<()> {
+    let current = profile::current_profile();
+    match current {
+        None => {
+            eprintln!("{}", "No active profile.".red());
+            std::process::exit(1);
+        }
+        Some(ref name) => println!("{}", name.green().bold()),
+    }
+    let skills = profile::list_skills()?;
+    if skills.is_empty() {
+        println!("{}", "  (no skills)".dimmed());
+    } else {
+        for s in &skills {
+            println!("  {}", s);
+        }
+    }
+    Ok(())
 }
 
 fn cmd_delete(name: &str) -> Result<()> {

@@ -37,6 +37,7 @@ cargo install --path .
 rt                        # List all profiles; active one is highlighted
 rt <name>                 # Switch to a profile
 rt -                      # Switch to previous profile (toggle)
+rt skills                 # List skills in the current profile
 rt create <name> [path]   # Snapshot skills into a new profile
 rt -d <name>              # Delete a profile
 rt --help                 # Show help
