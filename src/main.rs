@@ -13,10 +13,6 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    /// Print current profile name
-    #[arg(short = 'c', long = "current")]
-    current: bool,
-
     /// Delete a profile
     #[arg(short = 'd', long = "delete", value_name = "NAME")]
     delete: Option<String>,
@@ -44,10 +40,6 @@ fn main() -> Result<()> {
     }
 
     let cli = Cli::parse();
-
-    if cli.current {
-        return cmd_current();
-    }
 
     if let Some(name) = cli.delete {
         return cmd_delete(&name);
@@ -99,17 +91,6 @@ fn cmd_switch_previous() -> Result<()> {
             std::process::exit(1);
         }
     }
-}
-
-fn cmd_current() -> Result<()> {
-    match profile::current_profile() {
-        Some(name) => println!("{}", name),
-        None => {
-            eprintln!("{}", "No active profile.".red());
-            std::process::exit(1);
-        }
-    }
-    Ok(())
 }
 
 fn cmd_create(name: &str, path: Option<&std::path::Path>) -> Result<()> {
