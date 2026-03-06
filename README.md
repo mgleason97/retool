@@ -8,7 +8,7 @@ Managing agent skills across different workflows — personal dev, agent testing
 
 ## How it works
 
-`~/.agents/skills` is a symlink pointing to the active profile directory under `~/.agents/profiles/`. Switching profiles replaces that symlink.
+`~/.agents/skills` is a symlink pointing to the active profile directory under `~/.agents/profiles/`. Switching profiles replaces that symlink. By default, `rt` also updates `~/.claude/skills` so Claude Code picks up the same profile automatically.
 
 ```
 ~/.agents/
@@ -21,6 +21,9 @@ Managing agent skills across different workflows — personal dev, agent testing
       test-runner/
   skills -> ~/.agents/profiles/coding/   # active profile
   .retool_previous                        # tracks previous profile for toggle
+
+~/.claude/
+  skills -> ~/.agents/profiles/coding/   # kept in sync by rt
 ```
 
 ## Installation
@@ -35,13 +38,17 @@ cargo install --path .
 
 ```bash
 rt                        # List all profiles; active one is highlighted
-rt <name>                 # Switch to a profile
+rt <name>                 # Switch to a profile (updates both ~/.agents/skills and ~/.claude/skills)
 rt -                      # Switch to previous profile (toggle)
 rt skills                 # List skills in the current profile
 rt create <name> [path]   # Snapshot skills into a new profile
 rt -d <name>              # Delete a profile
 rt --help                 # Show help
 rt --version              # Show version
+
+# Opt out of updating one symlink target:
+rt <name> --no-claude     # Only update ~/.agents/skills
+rt <name> --no-agents     # Only update ~/.claude/skills
 ```
 
 ## Example

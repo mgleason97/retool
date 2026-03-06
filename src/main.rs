@@ -17,6 +17,14 @@ struct Cli {
     #[arg(short = 'd', long = "delete", value_name = "NAME")]
     delete: Option<String>,
 
+    /// Skip updating ~/.agents/skills
+    #[arg(long, global = true)]
+    no_agents: bool,
+
+    /// Skip updating ~/.claude/skills
+    #[arg(long, global = true)]
+    no_claude: bool,
+
     /// Profile name to switch to
     profile: Option<String>,
 }
@@ -37,11 +45,15 @@ enum Commands {
 fn main() -> Result<()> {
     // `rt -` must be intercepted before clap since `-` is not a valid clap flag
     let raw: Vec<String> = std::env::args().collect();
-    if raw.len() == 2 && raw[1] == "-" {
-        return cmd_switch_previous();
+    if raw.get(1).map(|s| s.as_str()) == Some("-") {
+        let no_agents = raw.iter().any(|s| s == "--no-agents");
+        let no_claude = raw.iter().any(|s| s == "--no-claude");
+        let targets = profile::Targets { agents: !no_agents, claude: !no_claude };
+        return cmd_switch_previous(&targets);
     }
 
     let cli = Cli::parse();
+    let targets = profile::Targets { agents: !cli.no_agents, claude: !cli.no_claude };
 
     if let Some(name) = cli.delete {
         return cmd_delete(&name);
@@ -51,7 +63,7 @@ fn main() -> Result<()> {
         Some(Commands::Create { name, path }) => cmd_create(&name, path.as_deref()),
         Some(Commands::Skills) => cmd_skills(),
         None => match cli.profile {
-            Some(name) => cmd_switch(&name),
+            Some(name) => cmd_switch(&name, &targets),
             None => cmd_list(),
         },
     }
@@ -76,16 +88,16 @@ fn cmd_list() -> Result<()> {
     Ok(())
 }
 
-fn cmd_switch(name: &str) -> Result<()> {
-    profile::switch_to(name)?;
+fn cmd_switch(name: &str, targets: &profile::Targets) -> Result<()> {
+    profile::switch_to(name, targets)?;
     println!("Switched to profile '{}'", name.green().bold());
     Ok(())
 }
 
-fn cmd_switch_previous() -> Result<()> {
+fn cmd_switch_previous(targets: &profile::Targets) -> Result<()> {
     match state::read_previous() {
         Some(prev) => {
-            profile::switch_to(&prev)?;
+            profile::switch_to(&prev, targets)?;
             println!("Switched to profile '{}'", prev.green().bold());
             Ok(())
         }

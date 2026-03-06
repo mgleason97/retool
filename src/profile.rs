@@ -19,6 +19,24 @@ pub fn skills_dir() -> PathBuf {
         .join("skills")
 }
 
+pub fn claude_skills_dir() -> PathBuf {
+    dirs::home_dir()
+        .expect("could not find home directory")
+        .join(".claude")
+        .join("skills")
+}
+
+pub struct Targets {
+    pub agents: bool,
+    pub claude: bool,
+}
+
+impl Default for Targets {
+    fn default() -> Self {
+        Self { agents: true, claude: true }
+    }
+}
+
 pub fn list_profiles() -> Result<Vec<String>> {
     let dir = profiles_dir();
     if !dir.exists() {
@@ -54,14 +72,12 @@ pub fn current_profile() -> Option<String> {
         .map(|s| s.to_string())
 }
 
-pub fn switch_to(name: &str) -> Result<()> {
+pub fn switch_to(name: &str, targets: &Targets) -> Result<()> {
     let profiles = profiles_dir();
     let profile_path = profiles.join(name);
     if !profile_path.exists() {
         bail!("profile '{}' does not exist", name);
     }
-
-    let skills = skills_dir();
 
     // Save current profile before switching
     if let Some(current) = current_profile() {
@@ -70,14 +86,29 @@ pub fn switch_to(name: &str) -> Result<()> {
         }
     }
 
-    // Remove existing symlink or file at skills_dir
-    if skills.exists() || skills.symlink_metadata().is_ok() {
-        fs::remove_file(&skills)
-            .with_context(|| format!("failed to remove existing skills link: {}", skills.display()))?;
+    if targets.agents {
+        let skills = skills_dir();
+        if skills.exists() || skills.symlink_metadata().is_ok() {
+            fs::remove_file(&skills)
+                .with_context(|| format!("failed to remove existing skills link: {}", skills.display()))?;
+        }
+        unix_fs::symlink(&profile_path, &skills)
+            .with_context(|| format!("failed to create symlink {} -> {}", skills.display(), profile_path.display()))?;
     }
 
-    unix_fs::symlink(&profile_path, &skills)
-        .with_context(|| format!("failed to create symlink {} -> {}", skills.display(), profile_path.display()))?;
+    if targets.claude {
+        let claude_skills = claude_skills_dir();
+        if let Some(parent) = claude_skills.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create dir: {}", parent.display()))?;
+        }
+        if claude_skills.exists() || claude_skills.symlink_metadata().is_ok() {
+            fs::remove_file(&claude_skills)
+                .with_context(|| format!("failed to remove existing claude skills link: {}", claude_skills.display()))?;
+        }
+        unix_fs::symlink(&profile_path, &claude_skills)
+            .with_context(|| format!("failed to create symlink {} -> {}", claude_skills.display(), profile_path.display()))?;
+    }
 
     Ok(())
 }
@@ -185,5 +216,11 @@ mod tests {
     fn test_skills_dir_path() {
         let path = skills_dir();
         assert!(path.ends_with(".agents/skills"));
+    }
+
+    #[test]
+    fn test_claude_skills_dir_path() {
+        let path = claude_skills_dir();
+        assert!(path.ends_with(".claude/skills"));
     }
 }
